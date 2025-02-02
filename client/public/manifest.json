@@ -1,0 +1,16 @@
+{
+  "name": "Nákupní Seznam",
+  "short_name": "Nákupy",
+  "description": "Aplikace pro správu nákupních seznamů",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    }
+  ]
+}
