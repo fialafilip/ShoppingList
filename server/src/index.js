@@ -1,24 +1,24 @@
 // server/src/index.js
 
-import express from "express";
-import mongoose from "mongoose";
-import cors from "cors";
-import dotenv from "dotenv";
-import session from "express-session";
-import passport from "passport";
-import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { createServer } from "http";
-import { Server } from "socket.io";
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import session from 'express-session';
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { createServer } from 'http';
+import { Server } from 'socket.io';
 
 // Import modelů
-import User from "./models/User.js";
-import "./models/Family.js";
-import "./models/Shop.js";
+import User from './models/User.js';
+import './models/Family.js';
+import './models/Shop.js';
 
 // Import routes
-import authRoutes from "./routes/auth.js";
-import shopRoutes from "./routes/shops.js";
-import familyRoutes from "./routes/family.js";
+import authRoutes from './routes/auth.js';
+import shopRoutes from './routes/shops.js';
+import familyRoutes from './routes/family.js';
 
 dotenv.config();
 
@@ -27,7 +27,7 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: process.env.CLIENT_URL || 'http://localhost:5173',
     credentials: true,
   },
 });
@@ -35,21 +35,21 @@ const io = new Server(httpServer, {
 // Middleware
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://localhost:5000"],
+    origin: ['http://localhost:5173', 'http://localhost:5000'],
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
 app.use(express.json());
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "your-secret-key",
+    secret: process.env.SESSION_SECRET || 'your-secret-key',
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: process.env.NODE_ENV === 'production',
       maxAge: 24 * 60 * 60 * 1000, // 24 hodin
     },
   })
@@ -70,9 +70,9 @@ passport.use(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "http://localhost:5000/auth/google/callback",
+      callbackURL: 'http://localhost:5000/auth/google/callback',
       // Přidáme tyto řádky
-      userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
+      userProfileURL: 'https://www.googleapis.com/oauth2/v3/userinfo',
       proxy: true,
     },
     async function (accessToken, refreshToken, profile, done) {
@@ -103,7 +103,7 @@ passport.use(
 
         return done(null, user);
       } catch (error) {
-        console.error("Google auth error:", error); // Pro debugging
+        console.error('Google auth error:', error); // Pro debugging
         return done(error, null);
       }
     }
@@ -124,30 +124,30 @@ passport.deserializeUser(async (id, done) => {
 });
 
 // Test endpoint
-app.get("/", (req, res) => {
-  res.json({ message: "Server is running" });
+app.get('/', (req, res) => {
+  res.json({ message: 'Server is running' });
 });
 
 // Routes
-app.use("/auth", authRoutes);
-app.use("/api/shops", shopRoutes);
-app.use("/api/family", familyRoutes);
+app.use('/auth', authRoutes);
+app.use('/api/shops', shopRoutes);
+app.use('/api/family', familyRoutes);
 
 const activeUsers = new Map(); // userId -> socketId
 const activeShops = new Map(); // shopId -> Set of userIds
 
 // Socket.io
-io.on("connection", (socket) => {
-  console.log("Client connected");
+io.on('connection', (socket) => {
+  console.log('Client connected');
 
   // Přihlášení uživatele
-  socket.on("userConnected", (userId) => {
+  socket.on('userConnected', (userId) => {
     activeUsers.set(userId, socket.id);
-    io.emit("activeUsers", Array.from(activeUsers.keys()));
+    io.emit('activeUsers', Array.from(activeUsers.keys()));
   });
 
   // Připojení k obchodu
-  socket.on("joinShop", ({ shopId, userId }) => {
+  socket.on('joinShop', ({ shopId, userId }) => {
     socket.join(shopId);
 
     if (!activeShops.has(shopId)) {
@@ -156,29 +156,29 @@ io.on("connection", (socket) => {
     activeShops.get(shopId).add(userId);
 
     // Informovat ostatní o novém uživateli
-    io.to(shopId).emit("shopUsers", {
+    io.to(shopId).emit('shopUsers', {
       shopId,
       users: Array.from(activeShops.get(shopId)),
     });
   });
 
   // Někdo začal upravovat položku
-  socket.on("startEditing", ({ shopId, itemId, userId }) => {
-    socket.to(shopId).emit("userEditing", { itemId, userId });
+  socket.on('startEditing', ({ shopId, itemId, userId }) => {
+    socket.to(shopId).emit('userEditing', { itemId, userId });
   });
 
   // Někdo přestal upravovat položku
-  socket.on("stopEditing", ({ shopId, itemId }) => {
-    socket.to(shopId).emit("userStoppedEditing", { itemId });
+  socket.on('stopEditing', ({ shopId, itemId }) => {
+    socket.to(shopId).emit('userStoppedEditing', { itemId });
   });
 
   // Změny v položkách
-  socket.on("itemChanged", ({ shopId, type, data, userId }) => {
-    socket.to(shopId).emit("itemUpdate", { type, data, userId });
+  socket.on('itemChanged', ({ shopId, type, data, userId }) => {
+    socket.to(shopId).emit('itemUpdate', { type, data, userId });
   });
 
   // Odpojení
-  socket.on("disconnect", () => {
+  socket.on('disconnect', () => {
     let userId;
     for (const [uid, sid] of activeUsers.entries()) {
       if (sid === socket.id) {
@@ -193,22 +193,22 @@ io.on("connection", (socket) => {
       for (const [shopId, users] of activeShops.entries()) {
         if (users.has(userId)) {
           users.delete(userId);
-          io.to(shopId).emit("shopUsers", {
+          io.to(shopId).emit('shopUsers', {
             shopId,
             users: Array.from(users),
           });
         }
       }
-      io.emit("activeUsers", Array.from(activeUsers.keys()));
+      io.emit('activeUsers', Array.from(activeUsers.keys()));
     }
   });
 });
 
 // MongoDB connection
 mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/shopping-list")
-  .then(() => console.log("Connected to MongoDB"))
-  .catch((err) => console.error("MongoDB connection error:", err));
+  .connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/shopping-list')
+  .then(() => console.log('Connected to MongoDB'))
+  .catch((err) => console.error('MongoDB connection error:', err));
 
 // Logging middleware
 app.use((req, res, next) => {

@@ -7,24 +7,28 @@ import { ShoppingBag } from 'lucide-react';
 function Login({ onLogin }) {
   const testLogin = useMutation({
     mutationFn: async () => {
-      const { data } = await axios.post('http://localhost:5000/auth/test-login', {}, {
-        withCredentials: true
-      });
+      const { data } = await axios.post(
+        'http://localhost:5000/auth/test-login',
+        {},
+        {
+          withCredentials: true,
+        }
+      );
       return data;
     },
     onSuccess: (user) => {
       onLogin(user);
-    }
+    },
   });
 
   const { data: user } = useQuery({
     queryKey: ['user'],
     queryFn: async () => {
       const { data } = await axios.get('http://localhost:5000/auth/user', {
-        withCredentials: true
+        withCredentials: true,
       });
       return data;
-    }
+    },
   });
 
   useEffect(() => {
@@ -47,14 +51,10 @@ function Login({ onLogin }) {
 
           <div className="space-y-4">
             <button
-              onClick={() => window.location.href = 'http://localhost:5000/auth/google'}
+              onClick={() => (window.location.href = 'http://localhost:5000/auth/google')}
               className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 rounded-lg p-3 text-gray-700 hover:bg-gray-50 hover:shadow-md transition-all duration-200"
             >
-              <img 
-                src="https://www.google.com/favicon.ico" 
-                alt="Google" 
-                className="w-5 h-5"
-              />
+              <img src="https://www.google.com/favicon.ico" alt="Google" className="w-5 h-5" />
               <span>Přihlásit se přes Google</span>
             </button>
 

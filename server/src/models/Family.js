@@ -1,5 +1,5 @@
 // server/src/models/Family.js
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const familySchema = new mongoose.Schema({
   name: {
@@ -10,13 +10,13 @@ const familySchema = new mongoose.Schema({
     {
       userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
+        ref: 'User',
         required: true,
       },
       role: {
         type: String,
-        enum: ["admin", "member"],
-        default: "member",
+        enum: ['admin', 'member'],
+        default: 'member',
       },
       addedAt: {
         type: Date,
@@ -26,7 +26,7 @@ const familySchema = new mongoose.Schema({
   ],
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    ref: 'User',
     required: true,
   },
   createdAt: {
@@ -35,4 +35,4 @@ const familySchema = new mongoose.Schema({
   },
 });
 
-export default mongoose.model("Family", familySchema);
+export default mongoose.model('Family', familySchema);

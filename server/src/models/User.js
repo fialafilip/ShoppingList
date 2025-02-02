@@ -1,5 +1,5 @@
 // server/src/models/User.js
-import mongoose from "mongoose";
+import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
   email: {
@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema({
   picture: String,
   familyId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Family",
+    ref: 'Family',
   },
   createdAt: {
     type: Date,
@@ -20,4 +20,4 @@ const userSchema = new mongoose.Schema({
   },
 });
 
-export default mongoose.model("User", userSchema);
+export default mongoose.model('User', userSchema);
