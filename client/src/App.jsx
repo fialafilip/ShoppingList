@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import ShopList from './components/ShopList';
 import Login from './components/Login';
+import NotificationPrompt from './components/NotificationPrompt';
 
 const queryClient = new QueryClient();
 
@@ -30,7 +31,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       {user ? <ShopList user={user} /> : <Login onLogin={setUser} />}
-
+      <NotificationPrompt />
       {/* PWA Update notification */}
       {(offlineReady || needRefresh) && (
         <div className="fixed bottom-0 right-0 m-4 z-50">

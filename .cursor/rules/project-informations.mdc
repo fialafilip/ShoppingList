@@ -1,0 +1,77 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Shopping List Application Development Communication
+
+## Introduction and Basic Structure
+- We started by creating a mobile Shopping List application in React
+- We implemented a Node.js backend with MongoDB
+- We added Google login
+- We created components for managing stores and shopping items
+
+## Frontend Features
+- List of stores with icons
+- Drag and drop for list items
+- Support for quantity and units of items
+- Real-time updates between users
+- PWA functionality for mobile installation
+- Push notifications for changes
+
+## Backend Features
+- REST API for CRUD operations
+- Google OAuth authentication
+- Socket.io for real-time communication
+- MongoDB database
+- Push notifications via web-push
+
+## Architecture
+### Frontend Structure:
+- App.jsx - main component with authentication
+- ShopList.jsx - list of stores
+- ShopItems.jsx - items in a store
+- FamilyManager.jsx - family management
+- Login.jsx - login screen
+
+### Backend Structure:
+- Shop Model - data about stores and items
+- User Model - user data
+- Family Model - families and their members
+- Socket.io communication - real-time updates
+- Web-push API - change notifications
+
+## Challenges and Solved Problems
+1. Implementation of Google OAuth authentication
+2. Managing CORS and cookies for secure API calls
+3. Real-time communication between clients
+4. Drag and drop functionality for item ordering
+5. Improving the user interface for both desktop and mobile
+6. Implementation of Push notifications
+7. Offline support via PWA
+
+## Current Status and Next Steps
+- Item list functionality is implemented
+- Real-time updates work between clients
+- PWA is ready for offline use
+- Push notifications are set up and tested
+- Optimization for different devices
+
+## Future Improvements
+- Improving UX for family management and sharing
+- Adding shopping data analysis
+- Integration with other services
+- Extended notification options
+- Data export/import capability
+
+## Technologies Used
+- React
+- TailwindCSS
+- React Query
+- Node.js and Express
+- MongoDB
+- Socket.io
+- Web-push
+- Google OAuth
+
+This overview summarizes our work so far on the Shopping List project, which now supports real-time collaboration between family members and modern features such as PWA and push notifications.

@@ -5,7 +5,7 @@ import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Edit2, Trash2, Plus, Check, X, SortAsc, ShoppingBag } from 'lucide-react';
 import axios from 'axios';
-import { socket } from '../socket';
+import socketClient from '../socket';
 
 function ShopItems({ shop, user }) {
   const [newItemName, setNewItemName] = useState('');
@@ -13,25 +13,8 @@ function ShopItems({ shop, user }) {
   const [newItemUnit, setNewItemUnit] = useState('ks');
   const [editingItem, setEditingItem] = useState(null);
   const [sortBy, setSortBy] = useState('custom');
-  const [activeEditors, setActiveEditors] = useState({});
+  const [activeUsers, setActiveUsers] = useState(new Set());
   const queryClient = useQueryClient();
-
-  useEffect(() => {
-    // Připojení k místnosti shopu
-    socket.emit('joinShop', { shopId: shop._id, userId: user._id });
-
-    // Poslech na změny od ostatních uživatelů
-    socket.on('itemUpdate', ({ type, data, userId }) => {
-      if (userId !== user._id) {
-        queryClient.invalidateQueries(['items', shop._id]);
-      }
-    });
-
-    // Cleanup při odpojení
-    return () => {
-      socket.off('itemUpdate');
-    };
-  }, [shop._id, user._id]);
 
   const units = [
     { value: 'ks', label: 'ks' },
@@ -42,6 +25,58 @@ function ShopItems({ shop, user }) {
     { value: 'balení', label: 'balení' },
   ];
 
+  useEffect(() => {
+    console.log('Setting up socket connection for shop:', shop._id);
+
+    // Připojení
+    socketClient.connect(user._id);
+    socketClient.joinShop(shop._id, user._id);
+
+    // Definujeme handler pro změny
+    const handleItemChange = ({ type, item, userId }) => {
+      console.log('Received item change:', { type, item, userId });
+      console.log('Current user:', user._id);
+
+      if (userId !== user._id) {
+        console.log('Updating data for type:', type);
+        queryClient.setQueryData(['items', shop._id], (oldData) => {
+          if (!oldData) {
+            console.log('No existing data');
+            return [item];
+          }
+
+          console.log('Current data:', oldData);
+
+          switch (type) {
+            case 'updated':
+              const newData = oldData.map((oldItem) => (oldItem._id === item._id ? item : oldItem));
+              console.log('Updated data:', newData);
+              return newData;
+            case 'added':
+              console.log('Adding new item');
+              return [...oldData, item];
+            case 'deleted':
+              console.log('Removing item');
+              return oldData.filter((oldItem) => oldItem._id !== item._id);
+            default:
+              return oldData;
+          }
+        });
+      }
+    };
+
+    // Registrujeme handler
+    socketClient.socket?.on('itemChange', handleItemChange);
+
+    // Cleanup
+    return () => {
+      console.log('Cleaning up socket connection');
+      socketClient.socket?.off('itemChange', handleItemChange);
+      socketClient.disconnect();
+    };
+  }, [shop._id, user._id]);
+
+  // Query a Mutations
   const { data: items = [], isLoading } = useQuery({
     queryKey: ['items', shop._id],
     queryFn: async () => {
@@ -57,20 +92,14 @@ function ShopItems({ shop, user }) {
       const { data } = await axios.post(
         `http://localhost:5000/api/shops/${shop._id}/items`,
         newItem,
-        {
-          withCredentials: true,
-        }
+        { withCredentials: true }
       );
       return data;
     },
     onSuccess: (data) => {
+      console.log('Item added, emitting change'); // přidáme logging
       queryClient.invalidateQueries(['items', shop._id]);
-      socket.emit('itemChanged', {
-        shopId: shop._id,
-        type: 'added',
-        data,
-        userId: user._id,
-      });
+      socketClient.emitItemChange('added', shop._id, data);
     },
   });
 
@@ -85,13 +114,13 @@ function ShopItems({ shop, user }) {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries(['items', shop._id]);
-      socket.emit('itemChanged', {
-        shopId: shop._id,
-        type: 'updated',
-        data,
-        userId: user._id,
+      socketClient.emitItemChange('updated', shop._id, {
+        item: data,
+        userName: user.name, // přidáme jméno uživatele
+        shopId: shop._id, // zajistíme, že shopId je součástí dat
+        familyId: shop.familyId, // přidáme familyId
       });
-      setEditingItem(null); // Ukončení editace po úspěšné aktualizaci
+      setEditingItem(null);
     },
   });
 
@@ -100,79 +129,15 @@ function ShopItems({ shop, user }) {
       await axios.delete(`http://localhost:5000/api/shops/${shop._id}/items/${itemId}`, {
         withCredentials: true,
       });
+      return itemId;
     },
-    onSuccess: () => {
+    onSuccess: (itemId) => {
       queryClient.invalidateQueries(['items', shop._id]);
-      socket.emit('itemChanged', {
-        shopId: shop._id,
-        type: 'deleted',
-        data,
-        userId: user._id,
-      });
+      socketClient.emitItemChange('Deleted', shop._id, { _id: itemId });
     },
   });
 
-  const reorderItems = useMutation({
-    mutationFn: async ({ itemId, newOrder }) => {
-      const { data } = await axios.patch(
-        `http://localhost:5000/api/shops/${shop._id}/items/${itemId}/reorder`,
-        { order: newOrder },
-        { withCredentials: true }
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['items', shop._id]);
-      socket.emit('itemChanged', {
-        shopId: shop._id,
-        type: 'reordered',
-        data,
-        userId: user._id,
-      });
-    },
-  });
-
-  const toggleItem = useMutation({
-    mutationFn: async (item) => {
-      const { data } = await axios.patch(
-        `http://localhost:5000/api/shops/${shop._id}/items/${item._id}`,
-        { completed: !item.completed },
-        { withCredentials: true }
-      );
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['items', shop._id]);
-      socket.emit('itemChanged', {
-        shopId: shop._id,
-        type: 'toggled',
-        data,
-        userId: user._id,
-      });
-    },
-  });
-
-  // Když začneme editovat položku
-  const handleStartEditing = (item) => {
-    setEditingItem(item);
-    socket.emit('startEditing', {
-      shopId: shop._id,
-      itemId: item._id,
-      userId: user._id,
-    });
-  };
-
-  // Když skončíme s editací
-  const handleStopEditing = () => {
-    if (editingItem) {
-      socket.emit('stopEditing', {
-        shopId: shop._id,
-        itemId: editingItem._id,
-      });
-    }
-    setEditingItem(null);
-  };
-
+  // Event handlers
   const handleSubmit = (e) => {
     e.preventDefault();
     if (newItemName.trim()) {
@@ -206,16 +171,18 @@ function ShopItems({ shop, user }) {
 
     if (sourceIndex === destinationIndex) return;
 
-    const itemsCopy = Array.from(items);
-    const [reorderedItem] = itemsCopy.splice(sourceIndex, 1);
-    itemsCopy.splice(destinationIndex, 0, reorderedItem);
+    const updatedItems = Array.from(items);
+    const [reorderedItem] = updatedItems.splice(sourceIndex, 1);
+    updatedItems.splice(destinationIndex, 0, reorderedItem);
 
-    reorderItems.mutate({
+    // Update order v databázi
+    updateItem.mutate({
       itemId: reorderedItem._id,
-      newOrder: destinationIndex,
+      updates: { order: destinationIndex },
     });
   };
 
+  // Sorting
   const sortedItems = [...items].sort((a, b) => {
     switch (sortBy) {
       case 'name':
@@ -223,41 +190,28 @@ function ShopItems({ shop, user }) {
       case 'date':
         return new Date(b.createdAt) - new Date(a.createdAt);
       case 'completed':
-      case 'custom':
-        // Nejdřív podle dokončení, pak podle vlastního pořadí
         if (a.completed !== b.completed) {
           return a.completed ? 1 : -1;
         }
+        return (a.order || 0) - (b.order || 0);
+      case 'custom':
         return (a.order || 0) - (b.order || 0);
       default:
         return 0;
     }
   });
-  const itemVariants = {
-    hidden: { opacity: 0, height: 0 },
-    visible: {
-      opacity: 1,
-      height: 'auto',
-      transition: { duration: 0.2 },
-    },
-    exit: {
-      opacity: 0,
-      height: 0,
-      transition: { duration: 0.2 },
-    },
-  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
       </div>
     );
   }
 
   return (
     <div className="p-6">
-      {/* Formulář pro přidání položky */}
+      {/* Přidání nové položky */}
       <motion.form
         onSubmit={handleSubmit}
         className="mb-6"
@@ -269,7 +223,7 @@ function ShopItems({ shop, user }) {
             type="text"
             value={newItemName}
             onChange={(e) => setNewItemName(e.target.value)}
-            placeholder="Přidat novou položku..."
+            placeholder="Nová položka..."
             className="flex-1 min-w-[200px] p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
           />
           <div className="flex gap-2">
@@ -303,6 +257,21 @@ function ShopItems({ shop, user }) {
         </div>
       </motion.form>
 
+      {/* Řazení */}
+      <div className="flex items-center gap-3 mb-6">
+        <SortAsc size={20} className="text-gray-400" />
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className="p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+        >
+          <option value="custom">Vlastní pořadí</option>
+          <option value="name">Podle názvu</option>
+          <option value="date">Podle data</option>
+          <option value="completed">Podle stavu</option>
+        </select>
+      </div>
+
       {/* Seznam položek */}
       <DragDropContext onDragEnd={onDragEnd}>
         <Droppable droppableId="items">
@@ -310,27 +279,25 @@ function ShopItems({ shop, user }) {
             <div ref={provided.innerRef} {...provided.droppableProps} className="space-y-3">
               <AnimatePresence>
                 {sortedItems.map((item, index) => (
-                  <Draggable key={item._id} draggableId={item._id} index={index}>
+                  <Draggable
+                    key={item._id}
+                    draggableId={item._id}
+                    index={index}
+                    isDragDisabled={sortBy !== 'custom'}
+                  >
                     {(provided, snapshot) => (
                       <motion.div
                         ref={provided.innerRef}
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                         initial={{ opacity: 0, y: 20 }}
-                        animate={{
-                          opacity: 1,
-                          y: 0,
-                          transition: {
-                            type: 'spring',
-                            stiffness: 500,
-                            damping: 30,
-                          },
-                        }}
-                        exit={{ opacity: 0, y: 20 }}
-                        layout // Toto zajistí plynulou animaci při změně pozice
-                        className={`bg-white rounded-xl border p-4 ${
-                          snapshot.isDragging ? 'shadow-lg' : 'shadow-sm hover:shadow-md'
-                        }`}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        className={`
+                          bg-white rounded-xl border p-4 transition-shadow
+                          ${snapshot.isDragging ? 'shadow-lg' : 'shadow-sm hover:shadow-md'}
+                          ${sortBy === 'custom' ? 'cursor-grab active:cursor-grabbing' : ''}
+                        `}
                       >
                         {editingItem?._id === item._id ? (
                           <form onSubmit={handleEdit} className="flex flex-wrap gap-2">
@@ -368,24 +335,30 @@ function ShopItems({ shop, user }) {
                             </select>
                             <button
                               type="submit"
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
                             >
                               <Check size={20} />
                             </button>
                             <button
                               type="button"
-                              onClick={handleStopEditing}
-                              className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg"
+                              onClick={() => setEditingItem(null)}
+                              className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
                             >
                               <X size={20} />
                             </button>
                           </form>
                         ) : (
                           <div className="flex items-center gap-3">
+                            {sortBy === 'custom' && <div className="text-gray-400 px-1">⋮⋮</div>}
                             <input
                               type="checkbox"
                               checked={item.completed}
-                              onChange={() => toggleItem.mutate(item)}
+                              onChange={() =>
+                                updateItem.mutate({
+                                  itemId: item._id,
+                                  updates: { completed: !item.completed },
+                                })
+                              }
                               className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                             />
                             <span
@@ -396,17 +369,10 @@ function ShopItems({ shop, user }) {
                             <span className="text-gray-500">
                               {item.quantity} {item.unit}
                             </span>
-                            {activeEditors[item._id] && (
-                              <span className="text-sm text-blue-500 animate-pulse">
-                                Upravuje uživatel...
-                              </span>
-                            )}
-
                             <div className="flex gap-1">
                               <button
-                                onClick={() => handleStartEditing(item)}
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                                disabled={!!activeEditors[item._id]}
+                                onClick={() => setEditingItem(item)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                               >
                                 <Edit2 size={16} />
                               </button>
@@ -416,7 +382,7 @@ function ShopItems({ shop, user }) {
                                     deleteItem.mutate(item._id);
                                   }
                                 }}
-                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -433,6 +399,16 @@ function ShopItems({ shop, user }) {
           )}
         </Droppable>
       </DragDropContext>
+
+      {/* Prázdný stav */}
+      {items.length === 0 && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-12">
+          <div className="text-gray-400 mb-3">
+            <ShoppingBag size={48} className="mx-auto" />
+          </div>
+          <p className="text-gray-500">Zatím nemáte žádné položky</p>
+        </motion.div>
+      )}
     </div>
   );
 }
