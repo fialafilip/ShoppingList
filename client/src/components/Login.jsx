@@ -1,10 +1,12 @@
 // src/components/Login.jsx
 import { useEffect } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import { ShoppingBag } from 'lucide-react';
 
-function Login({ onLogin }) {
+function Login() {
+  const queryClient = useQueryClient();
+
   const testLogin = useMutation({
     mutationFn: async () => {
       const { data } = await axios.post(
@@ -17,7 +19,7 @@ function Login({ onLogin }) {
       return data;
     },
     onSuccess: (user) => {
-      onLogin(user);
+      queryClient.setQueryData(['user'], user);
     },
   });
 
@@ -33,17 +35,17 @@ function Login({ onLogin }) {
 
   useEffect(() => {
     if (user) {
-      onLogin(user);
+      queryClient.setQueryData(['user'], user);
     }
-  }, [user]);
+  }, [user, queryClient]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 to-rose-50 p-4">
       <div className="w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-xl mb-4">
-              <ShoppingBag className="w-8 h-8 text-blue-600" />
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-xl mb-4">
+              <ShoppingBag className="w-8 h-8 text-red-600" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 mb-2">Nákupní Seznam</h1>
             <p className="text-gray-500">Přihlaste se a spravujte své nákupy</p>
@@ -71,7 +73,7 @@ function Login({ onLogin }) {
 
                 <button
                   onClick={() => testLogin.mutate()}
-                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                  className="w-full bg-red-600 text-white py-3 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200"
                 >
                   Testovací přihlášení
                 </button>

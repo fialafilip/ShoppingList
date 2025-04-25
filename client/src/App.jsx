@@ -1,14 +1,22 @@
-import { useState } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useRegisterSW } from 'virtual:pwa-register/react';
-import ShopList from './components/ShopList';
+import axios from 'axios';
+import { ShopList } from './components/shop-list';
 import Login from './components/Login';
 import NotificationPrompt from './components/NotificationPrompt';
+import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 
-const queryClient = new QueryClient();
-
-function App() {
-  const [user, setUser] = useState(null);
+function AppContent() {
+  const { t } = useLanguage();
+  const { data: user } = useQuery({
+    queryKey: ['user'],
+    queryFn: async () => {
+      const { data } = await axios.get('http://localhost:5000/auth/user', {
+        withCredentials: true,
+      });
+      return data;
+    },
+  });
 
   const {
     offlineReady: [offlineReady, setOfflineReady],
@@ -29,8 +37,8 @@ function App() {
   };
 
   return (
-    <QueryClientProvider client={queryClient}>
-      {user ? <ShopList user={user} /> : <Login onLogin={setUser} />}
+    <>
+      {user ? <ShopList user={user} /> : <Login />}
       <NotificationPrompt />
       {/* PWA Update notification */}
       {(offlineReady || needRefresh) && (
@@ -38,9 +46,9 @@ function App() {
           <div className="bg-white rounded-lg shadow-lg p-6 max-w-sm">
             <div className="mb-4">
               {offlineReady ? (
-                <p className="text-gray-700">Aplikace je připravena pro offline použití</p>
+                <p className="text-gray-700">{t('pwa.offlineReady')}</p>
               ) : (
-                <p className="text-gray-700">Je k dispozici nová verze aplikace</p>
+                <p className="text-gray-700">{t('pwa.updateAvailable')}</p>
               )}
             </div>
             <div className="flex justify-end gap-3">
@@ -49,20 +57,28 @@ function App() {
                   className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
                   onClick={() => updateServiceWorker(true)}
                 >
-                  Aktualizovat
+                  {t('pwa.update')}
                 </button>
               )}
               <button
                 className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                 onClick={() => close()}
               >
-                Zavřít
+                {t('pwa.close')}
               </button>
             </div>
           </div>
         </div>
       )}
-    </QueryClientProvider>
+    </>
+  );
+}
+
+function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }
 

@@ -13,6 +13,9 @@ const shopSchema = new mongoose.Schema({
       addedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
       order: { type: Number, default: 0 },
       createdAt: { type: Date, default: Date.now },
+      lockedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      lockedAt: { type: Date },
+      lockedByName: { type: String }, // Store the name of the user who locked it for quick access
     },
   ],
   createdAt: { type: Date, default: Date.now },

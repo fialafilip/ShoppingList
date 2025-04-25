@@ -5,62 +5,165 @@ class SocketClient {
   constructor() {
     this.socket = null;
     this.connected = false;
-    this.io = io; // Přidáme referenci na io
+    this.io = io;
+    this.pendingJoins = new Set();
+    this.userId = null;
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 10;
   }
 
   connect(userId) {
-    if (this.socket) return;
+    if (!userId) {
+      console.error('[LOCK] No userId provided for socket connection');
+      return Promise.reject(new Error('No userId provided'));
+    }
 
-    try {
-      this.socket = this.io('http://localhost:5000', {
-        auth: { userId },
-        withCredentials: true,
-      });
+    this.userId = userId;
 
-      this.socket.on('connect', () => {
-        console.log('Socket connected');
-        this.connected = true;
-      });
+    if (this.socket) {
+      if (this.connected) {
+        return Promise.resolve();
+      } else {
+        console.log('[LOCK] Socket exists but not connected, cleaning up...');
+        this.socket.close();
+        this.socket = null;
+      }
+    }
 
-      this.socket.on('connect_error', (error) => {
-        console.error('Socket connection error:', error);
+    return new Promise((resolve, reject) => {
+      try {
+        console.log('[LOCK] Creating socket connection for user:', userId);
+        this.socket = this.io('http://localhost:5000', {
+          auth: { userId },
+          withCredentials: true,
+          reconnection: true,
+          reconnectionDelay: 2000,
+          reconnectionAttempts: this.maxReconnectAttempts,
+          timeout: 10000,
+        });
+
+        // Set up a connection timeout
+        const connectionTimeout = setTimeout(() => {
+          if (!this.connected) {
+            console.error('[LOCK] Socket connection timeout');
+            this.socket.close();
+            reject(new Error('Connection timeout'));
+          }
+        }, 10000);
+
+        this.socket.on('connect', () => {
+          clearTimeout(connectionTimeout);
+          console.log('[LOCK] Socket connected successfully');
+          this.connected = true;
+          this.reconnectAttempts = 0;
+
+          // Rejoin all pending shops
+          this.pendingJoins.forEach(({ shopId, userId }) => {
+            this.joinShop(shopId, userId);
+          });
+          this.pendingJoins.clear();
+
+          resolve();
+        });
+
+        this.socket.on('connect_error', (error) => {
+          clearTimeout(connectionTimeout);
+          console.error('[LOCK] Socket connection error:', error);
+          this.connected = false;
+          this.reconnectAttempts++;
+
+          if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            console.error('[LOCK] Max reconnection attempts reached');
+            reject(error);
+          } else {
+            console.log(
+              `[LOCK] Reconnection attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts}`
+            );
+            // The socket.io-client will handle reconnection automatically
+          }
+        });
+
+        this.socket.on('disconnect', (reason) => {
+          console.log('[LOCK] Socket disconnected:', reason);
+          this.connected = false;
+
+          if (reason === 'io server disconnect') {
+            // Server initiated disconnect, try to reconnect
+            setTimeout(() => {
+              console.log('[LOCK] Server initiated disconnect, attempting to reconnect...');
+              this.connect(this.userId);
+            }, 2000);
+          }
+        });
+
+        this.socket.on('error', (error) => {
+          console.error('[LOCK] Socket error:', error);
+          this.connected = false;
+        });
+      } catch (error) {
+        clearTimeout(connectionTimeout);
+        console.error('[LOCK] Socket initialization error:', error);
         this.connected = false;
-      });
-    } catch (error) {
-      console.error('Socket initialization error:', error);
-    }
-  }
-
-  joinShop(shopId, userId) {
-    if (!this.socket || !this.connected) {
-      console.warn('Socket not connected, cannot join shop');
-      return;
-    }
-    console.log('Joining shop:', shopId);
-    this.socket.emit('joinShop', { shopId, userId });
-  }
-
-  emitItemChange(type, shopId, item) {
-    if (!this.socket || !this.connected) {
-      console.warn('Socket not connected, cannot emit change');
-      return;
-    }
-    console.log('Emitting item change:', type, item);
-    this.socket.emit('itemChange', {
-      type,
-      item,
-      shopId,
-      userId: this.socket.auth.userId,
+        reject(error);
+      }
     });
   }
 
-  onItemChange(callback) {
+  joinShop(shopId, userId) {
+    if (!shopId || !userId) {
+      console.error('[LOCK] Invalid joinShop parameters:', { shopId, userId });
+      return;
+    }
+
     if (!this.socket || !this.connected) {
-      console.warn('Socket not connected, cannot listen for changes');
+      console.log('[LOCK] Socket not connected, adding to pending joins:', { shopId, userId });
+      this.pendingJoins.add({ shopId, userId });
+      return;
+    }
+
+    console.log('[LOCK] Joining shop:', { shopId, userId });
+    this.socket.emit('joinShop', { shopId, userId });
+  }
+
+  emitItemChange(type, shopId, data) {
+    if (!this.socket || !this.connected) {
+      console.warn('[LOCK] Socket not connected, cannot emit change');
+      return;
+    }
+
+    if (!type || !shopId || !data) {
+      console.error('[LOCK] Invalid itemChange parameters:', { type, shopId, data });
+      return;
+    }
+
+    const payload = {
+      type,
+      item: {
+        ...data,
+        userName: data.userName || data.lockedByName,
+      },
+      shopId,
+      userId: data.userId || this.userId,
+      userName: data.userName || data.lockedByName,
+      familyId: data.familyId,
+    };
+
+    console.log('[LOCK] Emitting item change:', {
+      type: payload.type,
+      itemId: payload.item._id,
+      userId: payload.userId,
+      userName: payload.userName,
+    });
+    this.socket.emit('itemChange', payload);
+  }
+
+  onItemChange(callback) {
+    if (!this.socket) {
+      console.warn('[LOCK] Socket not initialized, cannot listen for changes');
       return;
     }
     this.socket.on('itemChange', callback);
-    console.log('Registered item change listener');
+    console.log('[LOCK] Registered item change listener');
   }
 
   disconnect() {
@@ -68,11 +171,13 @@ class SocketClient {
       this.socket.disconnect();
       this.socket = null;
       this.connected = false;
-      console.log('Socket disconnected');
+      this.pendingJoins.clear();
+      this.userId = null;
+      this.reconnectAttempts = 0;
     }
   }
 }
 
-// Vytvoříme a exportujeme jednu instanci
+// Create and export a single instance
 const socketClient = new SocketClient();
 export default socketClient;

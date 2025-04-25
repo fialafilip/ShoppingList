@@ -4,10 +4,10 @@ import PropTypes from 'prop-types';
 export function ShopCard({ shop, isSelected, onSelect, onEdit, onDelete }) {
   return (
     <div
-      className={`group p-4 rounded-xl cursor-pointer transition-all duration-200 ${
+      className={`group p-2 rounded-xl cursor-pointer transition-all duration-200 ${
         isSelected
-          ? 'bg-blue-50 border-2 border-blue-300 shadow-md'
-          : 'bg-white border border-gray-100 hover:border-blue-200 hover:shadow-md'
+          ? 'bg-red-50 border-2 border-red-300 shadow-md'
+          : 'bg-white border border-gray-100 hover:border-red-200 hover:shadow-md'
       }`}
       onClick={() => onSelect(shop)}
     >

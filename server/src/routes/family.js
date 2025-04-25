@@ -31,6 +31,7 @@ const isAdmin = async (req, res, next) => {
     req.family = family;
     next();
   } catch (error) {
+    console.error('Error in isAdmin middleware:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -163,6 +164,58 @@ router.delete('/:familyId/members/:userId', isAuthenticated, isAdmin, async (req
     res.json({ message: 'Member removed' });
   } catch (error) {
     res.status(400).json({ message: error.message });
+  }
+});
+
+// Update family
+router.patch('/:familyId', isAuthenticated, isAdmin, async (req, res) => {
+  try {
+    const family = req.family;
+    family.name = req.body.name;
+    await family.save();
+
+    const populatedFamily = await Family.findById(family._id).populate(
+      'members.userId',
+      'name email picture'
+    );
+
+    res.json(populatedFamily);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Delete family
+router.delete('/:familyId', isAuthenticated, isAdmin, async (req, res) => {
+  try {
+    await req.family.deleteOne();
+    res.json({ message: 'Family deleted' });
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Switch current family
+router.post('/:familyId/switch', isAuthenticated, async (req, res) => {
+  try {
+    const family = await Family.findById(req.params.familyId);
+    if (!family) {
+      return res.status(404).json({ message: 'Family not found' });
+    }
+
+    // Check if user is member of the family
+    const isMember = family.members.some((m) => m.userId.toString() === req.user._id.toString());
+
+    if (!isMember) {
+      return res.status(403).json({ message: 'Not a member of this family' });
+    }
+
+    // Update user's current family
+    await User.findByIdAndUpdate(req.user._id, { currentFamilyId: family._id });
+
+    res.json({ message: 'Current family updated' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 });
 

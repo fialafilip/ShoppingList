@@ -9,16 +9,16 @@ export function Header({ onFamilyClick, onLogout }) {
         <div className="flex gap-3">
           <button
             onClick={onFamilyClick}
-            className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-gray-700"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-gray-700 text-sm"
           >
-            <Users size={20} />
+            <Users size={16} />
             <span>Rodina</span>
           </button>
           <button
             onClick={onLogout}
-            className="flex items-center gap-2 px-4 py-2 text-red-600 bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-red-600 bg-white rounded-lg shadow-sm hover:shadow-md transition-all duration-200 text-sm"
           >
-            <LogOut size={20} />
+            <LogOut size={16} />
             <span>Odhlásit</span>
           </button>
         </div>

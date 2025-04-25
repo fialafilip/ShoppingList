@@ -1,39 +1,46 @@
+import { useState, useEffect } from 'react';
 import { Check, X } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 const SHOP_ICONS = ['🏪', '🛒', '💊', '🔨', '📚', '🥖', '🏥', '🎮', '👕', '🐱', '🌺', '🍷'];
 
 export function EditShopForm({ shop, onSave, onCancel }) {
+  const [formState, setFormState] = useState({ ...shop });
+
+  useEffect(() => {
+    setFormState({ ...shop });
+  }, [shop]);
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (shop.name.trim()) {
-      onSave(shop);
+    if (formState.name.trim()) {
+      onSave(formState);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="bg-blue-50 p-4 rounded-xl border-2 border-blue-200">
+    <form onSubmit={handleSubmit} className="bg-red-50 p-4 rounded-xl border-2 border-red-200">
       <div className="flex gap-2 mb-3">
         <input
           type="text"
-          value={shop.name}
-          onChange={(e) => onSave({ ...shop, name: e.target.value })}
-          className="flex-1 p-2 border rounded-lg"
+          value={formState.name}
+          onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
+          className="flex-1 px-3 py-1.5 text-sm border rounded-lg"
           autoFocus
         />
         <div className="flex gap-1">
           <button
             type="submit"
-            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+            className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
           >
-            <Check size={20} />
+            <Check size={16} />
           </button>
           <button
             type="button"
             onClick={onCancel}
-            className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+            className="p-1.5 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
           >
-            <X size={20} />
+            <X size={16} />
           </button>
         </div>
       </div>
@@ -42,9 +49,9 @@ export function EditShopForm({ shop, onSave, onCancel }) {
           <button
             key={icon}
             type="button"
-            onClick={() => onSave({ ...shop, icon })}
-            className={`p-3 rounded-lg hover:bg-blue-100 transition-colors ${
-              shop.icon === icon ? 'bg-blue-200' : 'bg-blue-50'
+            onClick={() => setFormState((prev) => ({ ...prev, icon }))}
+            className={`p-3 rounded-lg hover:bg-red-100 transition-colors ${
+              formState.icon === icon ? 'bg-red-200' : 'bg-red-50'
             }`}
           >
             <span className="text-2xl">{icon}</span>

@@ -10,9 +10,13 @@ const userSchema = new mongoose.Schema({
   name: String,
   googleId: String,
   picture: String,
-  familyId: {
+  currentFamilyId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Family',
+  },
+  pendingSetup: {
+    type: Boolean,
+    default: true,
   },
   createdAt: {
     type: Date,

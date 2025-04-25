@@ -1,0 +1,16 @@
+{
+  "name": "Nákupní seznam",
+  "short_name": "Nákupy",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "32x32 64x64 128x128 256x256",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#6366F1"
+}

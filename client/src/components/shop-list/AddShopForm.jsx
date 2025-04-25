@@ -24,13 +24,13 @@ export function AddShopForm({ onAdd }) {
           value={newShopName}
           onChange={(e) => setNewShopName(e.target.value)}
           placeholder="Název nového obchodu..."
-          className="flex-1 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all duration-200"
+          className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all duration-200"
         />
         <button
           type="submit"
-          className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
+          className="bg-red-500 text-white px-4 py-2 text-sm rounded-lg hover:bg-red-600 transition-colors duration-200 flex items-center gap-1.5"
         >
-          <Plus size={20} />
+          <Plus size={16} />
           <span>Přidat</span>
         </button>
       </div>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { UNITS } from '../../constants/units';
+import PropTypes from 'prop-types';
 
 export function AddItemForm({ onAdd }) {
   const [newItemName, setNewItemName] = useState('');
@@ -29,13 +30,13 @@ export function AddItemForm({ onAdd }) {
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col md:flex-row gap-2">
         <input
           type="text"
           value={newItemName}
           onChange={(e) => setNewItemName(e.target.value)}
           placeholder="Nová položka..."
-          className="flex-1 min-w-[200px] p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+          className="flex-1 min-w-0 px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 placeholder-gray-400"
         />
         <div className="flex gap-2">
           <input
@@ -44,12 +45,12 @@ export function AddItemForm({ onAdd }) {
             onChange={(e) => setNewItemQuantity(Number(e.target.value))}
             min="0.1"
             step="0.1"
-            className="w-20 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            className="w-20 px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200"
           />
           <select
             value={newItemUnit}
             onChange={(e) => setNewItemUnit(e.target.value)}
-            className="w-24 p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+            className="w-20 px-3 py-2 text-sm bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200"
           >
             {UNITS.map((unit) => (
               <option key={unit.value} value={unit.value}>
@@ -57,15 +58,21 @@ export function AddItemForm({ onAdd }) {
               </option>
             ))}
           </select>
-          <button
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
             type="submit"
-            className="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 transition-colors duration-200 flex items-center gap-2"
+            className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-violet-500 text-white text-sm rounded-lg hover:from-indigo-600 hover:to-violet-600 transition-all duration-200 flex items-center gap-1.5 shadow-sm hover:shadow font-medium"
           >
-            <Plus size={20} />
+            <Plus className="w-4 h-4" />
             <span>Přidat</span>
-          </button>
+          </motion.button>
         </div>
       </div>
     </motion.form>
   );
 }
+
+AddItemForm.propTypes = {
+  onAdd: PropTypes.func.isRequired,
+};

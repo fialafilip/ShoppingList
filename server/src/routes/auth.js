@@ -1,6 +1,7 @@
 import express from 'express';
 import passport from 'passport';
 import User from '../models/User.js';
+import Family from '../models/Family.js';
 
 const router = express.Router();
 
@@ -8,7 +9,6 @@ const router = express.Router();
 router.get(
   '/google',
   (req, res, next) => {
-    console.log('Starting Google auth...');
     next();
   },
   passport.authenticate('google', {
@@ -20,7 +20,6 @@ router.get(
 router.get(
   '/google/callback',
   (req, res, next) => {
-    console.log('Received callback from Google');
     next();
   },
   passport.authenticate('google', {
@@ -28,14 +27,18 @@ router.get(
     failureMessage: true,
   }),
   (req, res) => {
-    console.log('Authentication successful');
     res.redirect('http://localhost:5173');
   }
 );
 
 // Get current user
-router.get('/user', (req, res) => {
-  res.json(req.user || null);
+router.get('/user', async (req, res) => {
+  if (!req.user) {
+    return res.json(null);
+  }
+
+  const user = await User.findById(req.user._id).populate('currentFamilyId');
+  res.json(user);
 });
 
 // Test login pro vývoj
@@ -48,6 +51,7 @@ router.post('/test-login', async (req, res) => {
         email: 'test@example.com',
         name: 'Test User',
         googleId: 'test123',
+        pendingSetup: true,
       });
     }
 
@@ -71,6 +75,23 @@ router.post('/logout', (req, res) => {
     }
     res.json({ message: 'Logged out' });
   });
+});
+
+// Complete setup
+router.post('/complete-setup', async (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+
+  try {
+    const user = await User.findById(req.user._id);
+    user.pendingSetup = false;
+    await user.save();
+    res.json(user);
+  } catch (error) {
+    console.error('Complete setup error:', error);
+    res.status(500).json({ message: error.message });
+  }
 });
 
 export default router;
